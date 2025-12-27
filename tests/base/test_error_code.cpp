@@ -10,8 +10,9 @@ TEST(ErrorCode, SetErrorCode)
 
 TEST(ErrorCode, GetErrorStr)
 {
+    EXPECT_STREQ(lldkGetErrorStr((lldk::common::ErrorCode)-2), "");
     EXPECT_STREQ(lldkGetErrorStr(lldk::common::ErrorCode::kSuccess), "Success");
-    EXPECT_STREQ(lldkGetErrorStr(lldk::common::ErrorCode::kUnknown), "");
+    EXPECT_STREQ(lldkGetErrorStr(lldk::common::ErrorCode::kUnknown), "Unknown");
 }
 
 TEST(ErrorCode, SetErrorMsg)

@@ -1,10 +1,14 @@
 # ==============================================================================
-# base 库的 CMakeLists.txt 示例
-# 基于 CMakeLists.txt.template 模板
+# CMakeLists.txt 模板 - 适用于每个库的编译
+# 
+# 使用方法：
+# 1. 复制此文件到对应库的目录（如 src/base/CMakeLists.txt）
+# 2. 修改 LIBRARY_NAME 和 SOURCE_FILES 变量
+# 3. 根据需要调整依赖库
 # ==============================================================================
 
 cmake_minimum_required(VERSION 3.14)
-project(lldk_base VERSION 1.0.0 LANGUAGES CXX)
+project(lldk_${LIBRARY_NAME} VERSION 1.0.0 LANGUAGES CXX)
 
 # ==============================================================================
 # 配置选项
@@ -114,8 +118,8 @@ endif()
 # 库配置
 # ==============================================================================
 
-# 库名称
-set(LIBRARY_NAME "base")
+# 设置库名称 (需要在使用此模板时定义)
+# set(LIBRARY_NAME "base")  # 示例
 
 # 自动搜索当前目录下的源文件
 # 选项：是否递归搜索子目录（默认: OFF，只搜索当前目录）
@@ -142,11 +146,12 @@ list(FILTER SOURCE_FILES EXCLUDE REGEX ".*example.*\\.cpp$")
 list(FILTER SOURCE_FILES EXCLUDE REGEX ".*demo.*\\.cpp$")
 
 # 如果自动搜索没有找到文件，使用手动指定的文件列表作为后备
+# 取消下面的注释并添加源文件，如果自动搜索失败
 if(NOT SOURCE_FILES)
     message(WARNING "No source files found automatically. Using fallback list.")
     set(SOURCE_FILES
-        "error_code.cpp"
         # 如果自动搜索失败，可以在这里手动添加源文件
+        # "error_code.cpp"
     )
 endif()
 
@@ -162,7 +167,7 @@ foreach(SOURCE_FILE ${SOURCE_FILES})
 endforeach()
 
 # 设置头文件目录
-# 从 src/base 目录向上两级找到项目根目录
+# 从 src/xxx 目录向上两级找到项目根目录
 get_filename_component(PROJECT_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 set(INCLUDE_DIR "${PROJECT_ROOT_DIR}/include")
 
@@ -240,14 +245,67 @@ else()
     endif()
 endif()
 
-# base 库没有依赖其他 lldk 库
-# 如果有依赖，可以这样添加：
-# target_link_libraries(lldk_${LIBRARY_NAME}
-#     PUBLIC
-#         # 公共依赖
-#     PRIVATE
-#         # 私有依赖
-# )
+# 链接依赖库 (根据需要修改)
+# 注意：如果使用 BOTH 模式，需要分别为静态库和动态库设置依赖
+# if(BUILD_LIB_TYPE STREQUAL "BOTH")
+#     target_link_libraries(${LIB_TARGET_STATIC}
+#         PUBLIC
+#             # 添加公共依赖
+#         PRIVATE
+#             # 添加私有依赖
+#     )
+#     target_link_libraries(${LIB_TARGET_SHARED}
+#         PUBLIC
+#             # 添加公共依赖
+#         PRIVATE
+#             # 添加私有依赖
+#     )
+# else()
+#     target_link_libraries(${LIB_TARGET}
+#         PUBLIC
+#             # 添加公共依赖
+#         PRIVATE
+#             # 添加私有依赖
+#     )
+# endif()
+
+# ==============================================================================
+# 安装配置
+# ==============================================================================
+
+# 安装库文件（根据库类型选择安装目标）
+if(BUILD_LIB_TYPE STREQUAL "BOTH")
+    # 同时安装静态库和动态库
+    install(TARGETS ${LIB_TARGET_STATIC} ${LIB_TARGET_SHARED}
+        EXPORT lldk_${LIBRARY_NAME}Targets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+    )
+else()
+    # 安装单个库目标
+    install(TARGETS ${LIB_TARGET}
+        EXPORT lldk_${LIBRARY_NAME}Targets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+    )
+endif()
+
+# 安装头文件
+install(DIRECTORY ${INCLUDE_DIR}/lldk/${LIBRARY_NAME}/
+    DESTINATION include/lldk/${LIBRARY_NAME}
+    FILES_MATCHING PATTERN "*.h"
+)
+
+# 安装导出文件
+install(EXPORT lldk_${LIBRARY_NAME}Targets
+    FILE lldk_${LIBRARY_NAME}Targets.cmake
+    NAMESPACE lldk::
+    DESTINATION lib/cmake/lldk_${LIBRARY_NAME}
+)
 
 # ==============================================================================
 # 输出信息
