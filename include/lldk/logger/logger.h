@@ -1,7 +1,7 @@
 #ifndef LLDK_LOGGER_LOGGER_H
 #define LLDK_LOGGER_LOGGER_H
 
-#include "lldk/common/common.h"
+#include "lldk/base/common.h"
 
 namespace lldk
 {
@@ -123,18 +123,18 @@ LLDK_EXTERN_C lldk::logger::ILogger *lldkGetLoggerSingleton();
 #define __LLDK_LOG_BASE(pLogger, eLevel, iErrorCode, pFormat, ...)             \
   {                                                                            \
     if ((pLogger) != nullptr && (eLevel) >= (pLogger)->getLevel()) {           \
-      const char *ppParams[] = {"", ##__VA_ARGS__, LLDK_CODE_POSITION};        \
-      (pLogger)->log(eLevel, int32_t(iErrorCode), pFormat "({},{})",           \
-                     &ppParams[1],                                             \
-                     sizeof(ppParams) / sizeof(ppParams[0]) - 1);              \
+      const char *ppParams[] = {MODULE_NAME, ##__VA_ARGS__,                    \
+                                LLDK_CODE_POSITION};                           \
+      (pLogger)->log(eLevel, int32_t(iErrorCode), "[{}] " pFormat "({},{})",   \
+                     ppParams, sizeof(ppParams) / sizeof(ppParams[0]));        \
     }                                                                          \
   }
 
-#define LDK_LOG_DEBUG(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kDebug, iErrorCode, pFormat, ##__VA_ARGS__)
-#define LDK_LOG_INFO(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kInfo, iErrorCode, pFormat, ##__VA_ARGS__)
-#define LDK_LOG_WARN(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kWarn, iErrorCode, pFormat, ##__VA_ARGS__)
-#define LDK_LOG_ERROR(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kError, iErrorCode, pFormat, ##__VA_ARGS__)
-#define LDK_LOG_FATAL(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kFatal, iErrorCode, pFormat, ##__VA_ARGS__)
-#define LDK_LOG_EVENT(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kEvent, iErrorCode, pFormat, ##__VA_ARGS__)
+#define LLDK_LOG_DEBUG(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kDebug, iErrorCode, pFormat, ##__VA_ARGS__)
+#define LLDK_LOG_INFO(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kInfo, iErrorCode, pFormat, ##__VA_ARGS__)
+#define LLDK_LOG_WARN(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kWarn, iErrorCode, pFormat, ##__VA_ARGS__)
+#define LLDK_LOG_ERROR(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kError, iErrorCode, pFormat, ##__VA_ARGS__)
+#define LLDK_LOG_FATAL(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kFatal, iErrorCode, pFormat, ##__VA_ARGS__)
+#define LLDK_LOG_EVENT(pLogger, iErrorCode, pFormat, ...) __LLDK_LOG_BASE(pLogger, lldk::logger::ILogger::Level::kEvent, iErrorCode, pFormat, ##__VA_ARGS__)
 
 #endif // LLDK_LOGGER_LOGGER_H

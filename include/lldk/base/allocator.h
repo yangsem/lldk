@@ -1,7 +1,7 @@
 #ifndef LLDK_MEMORY_ALLOCATOR_H
 #define LLDK_MEMORY_ALLOCATOR_H
 
-#include "lldk/common/common.h"
+#include "lldk/base/common.h"
 
 namespace lldk
 {

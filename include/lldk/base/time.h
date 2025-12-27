@@ -1,7 +1,7 @@
 #ifndef LLDK_UTILITY_TIME_H
 #define LLDK_UTILITY_TIME_H
 
-#include "lldk/common/common.h"
+#include "lldk/base/common.h"
 #include <time.h>
 
 namespace lldk

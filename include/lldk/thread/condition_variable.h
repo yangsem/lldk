@@ -1,7 +1,7 @@
 #ifndef LLDK_THREAD_CONDITION_VARIABLE_H
 #define LLDK_THREAD_CONDITION_VARIABLE_H
 
-#include "lldk/common/common.h"
+#include "lldk/base/common.h"
 
 namespace lldk
 {

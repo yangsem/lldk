@@ -40,4 +40,15 @@
 # debug information files
 *.dwo
 
+# compile files
+build
+
+# clang files
 .clangd
+.cache
+compile_commands.json
+
+#deps
+deps/deps
+
+*.log
