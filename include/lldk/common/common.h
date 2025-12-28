@@ -154,5 +154,17 @@
 // type alias
 #include <stdint.h>
 
+/**
+ * @brief Get the process id
+ * @return The process id, -1 if failed
+ */
+LLDK_EXTERN_C int64_t lldkGetPid();
+
+/**
+ * @brief Get the thread id
+ * @return The thread id, -1 if failed
+ */
+LLDK_EXTERN_C int64_t lldkGetTid();
+
 #endif // LLDK_COMMON_COMMON_H
 

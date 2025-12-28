@@ -1,7 +1,7 @@
 #ifndef LLDK_LOGGER_LOGGER_H
 #define LLDK_LOGGER_LOGGER_H
 
-#include "lldk/base/common.h"
+#include "lldk/common/common.h"
 
 namespace lldk
 {

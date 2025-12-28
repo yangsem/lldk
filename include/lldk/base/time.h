@@ -1,12 +1,12 @@
 #ifndef LLDK_UTILITY_TIME_H
 #define LLDK_UTILITY_TIME_H
 
-#include "lldk/base/common.h"
+#include "lldk/common/common.h"
 #include <time.h>
 
 namespace lldk
 {
-namespace utility
+namespace base
 {
 
 struct TimeSpec
@@ -97,14 +97,14 @@ public:
  * @param pTime The time pointer
  * @return 0 if success, -1 if failed
  */
-LLDK_EXTERN_C int32_t lldkGetTime(lldk::utility::TimeSpec *pTimeSpec);
+LLDK_EXTERN_C int32_t lldkGetTime(lldk::base::TimeSpec *pTimeSpec);
 
 /**
  * @brief Get the time singleton
  * @return The time singleton pointer, NULL if failed
  * @note the time singleton is a singleton that provides the time functionality, all functions are thread safe.
  */
-LLDK_EXTERN_C lldk::utility::ITime *lldkGetTimeSingleton();
+LLDK_EXTERN_C lldk::base::ITime *lldkGetTimeSingleton();
 
 /**
  * @brief Get the clock monotonic nanoseconds

@@ -1,7 +1,7 @@
 #ifndef LLDK_THREAD_TASK_SCHEDULER_H
 #define LLDK_THREAD_TASK_SCHEDULER_H
 
-#include "lldk/base/common.h"
+#include "lldk/common/common.h"
 
 namespace lldk
 {

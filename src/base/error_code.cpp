@@ -1,38 +1,40 @@
-#include "lldk/base/error_code.h"
-#include "lldk/base/common.h"
+#include "lldk/common/error_code.h"
+#include "lldk/common/common.h"
 #include <string>
 #include <unordered_map>
 
-static thread_local lldk::common::ErrorCode s_eErrorCode = lldk::common::ErrorCode::kSuccess;
-static thread_local std::string *s_pErrorMsg = nullptr;
+static thread_local lldk::ErrorCode s_eErrorCode = lldk::ErrorCode::kSuccess;
+static thread_local std::string s_strErrorMsg = "";
 
-static std::unordered_map<lldk::common::ErrorCode, const char *> s_pErrorStrMap = {
-    {lldk::common::ErrorCode::kUnknown, "Unknown"},
-    {lldk::common::ErrorCode::kSuccess, "Success"},
-    {lldk::common::ErrorCode::kDebug, "Debug"},
-    {lldk::common::ErrorCode::kInfo, "Info"},
-    {lldk::common::ErrorCode::kWarn, "Warn"},
-    {lldk::common::ErrorCode::kError, "Error"},
-    {lldk::common::ErrorCode::kEvent, "Event"},
+static std::unordered_map<lldk::ErrorCode, const char *> s_pErrorStrMap = {
+    {lldk::ErrorCode::kUnknown, "Unknown"},
+    {lldk::ErrorCode::kSuccess, "Success"},
+    {lldk::ErrorCode::kDebug, "Debug"},
+    {lldk::ErrorCode::kInfo, "Info"},
+    {lldk::ErrorCode::kWarn, "Warn"},
+    {lldk::ErrorCode::kError, "Error"},
+    {lldk::ErrorCode::kEvent, "Event"},
 
-    {lldk::common::ErrorCode::kSystemCallError, "System call error"},
-    {lldk::common::ErrorCode::kThrowException, "Throw exception"},
-    {lldk::common::ErrorCode::kNoMemory, "No memory"},
-    {lldk::common::ErrorCode::kInvalidParam, "Invalid parameter"},
-    {lldk::common::ErrorCode::kInvalidState, "Invalid state"},
+    {lldk::ErrorCode::kSystemCallError, "System call error"},
+    {lldk::ErrorCode::kThrowException, "Throw exception"},
+    {lldk::ErrorCode::kNoMemory, "No memory"},
+    {lldk::ErrorCode::kInvalidParam, "Invalid parameter"},
+    {lldk::ErrorCode::kInvalidState, "Invalid state"},
+    {lldk::ErrorCode::kInvalidCall, "Invalid call"},
+    {lldk::ErrorCode::kCallFailed, "Call failed"},
 };
 
-void lldkSetErrorCode(lldk::common::ErrorCode eErrorCode)
+void lldkSetErrorCode(lldk::ErrorCode eErrorCode)
 {
     s_eErrorCode = eErrorCode;
 }
 
-lldk::common::ErrorCode lldkGetErrorCode()
+lldk::ErrorCode lldkGetErrorCode()
 {
     return s_eErrorCode;
 }
 
-const char *lldkGetErrorStr(lldk::common::ErrorCode eErrorCode)
+const char *lldkGetErrorStr(lldk::ErrorCode eErrorCode)
 {
     auto it = s_pErrorStrMap.find(eErrorCode);
     if (likely(it != s_pErrorStrMap.end()))
@@ -47,27 +49,17 @@ int32_t lldkSetErrorMsg(const char *pMsg)
 {
     if (unlikely(pMsg == nullptr))
     {
-        return (int32_t)lldk::common::ErrorCode::kInvalidParam;
-    }
-
-    if (unlikely(s_pErrorMsg == nullptr))
-    {
-        s_pErrorMsg = LLDK_NEW std::string();
-        if (unlikely(s_pErrorMsg == nullptr))
-        {
-            LLDK_PRINT_ERROR("Failed to allocate memory for error message");
-            return (int32_t)lldk::common::ErrorCode::kNoMemory;
-        }
+        return (int32_t)lldk::ErrorCode::kInvalidParam;
     }
 
     try
     {
-        *s_pErrorMsg = pMsg;
+        s_strErrorMsg = pMsg;
     }
     catch (...)
     {
-        LLDK_PRINT_ERROR("Failed to set error message: %s", s_pErrorMsg->c_str());
-        return (int32_t)lldk::common::ErrorCode::kThrowException;
+        LLDK_PRINT_ERROR("Failed to set error message: %s", pMsg);
+        return (int32_t)lldk::ErrorCode::kThrowException;
     }
 
     return 0;
@@ -75,10 +67,5 @@ int32_t lldkSetErrorMsg(const char *pMsg)
 
 const char *lldkGetErrorMsg()
 {
-    if (unlikely(s_pErrorMsg == nullptr))
-    {
-        return "";
-    }
-
-    return s_pErrorMsg->c_str();
+    return s_strErrorMsg.c_str();
 }

@@ -1,7 +1,7 @@
 #ifndef LLDK_THREAD_THREAD_H
 #define LLDK_THREAD_THREAD_H
 
-#include "lldk/base/common.h"
+#include "lldk/common/common.h"
 
 namespace lldk
 {
@@ -135,18 +135,6 @@ public:
 
 }
 }
-
-/**
- * @brief Get the process id
- * @return The process id, -1 if failed
- */
-LLDK_EXTERN_C int64_t lldkGetPid();
-
-/**
- * @brief Get the thread id
- * @return The thread id, -1 if failed
- */
-LLDK_EXTERN_C int64_t lldkGetTid();
 
 /**
  * @brief Set the thread name

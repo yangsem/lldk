@@ -1,7 +1,7 @@
 #ifndef LLDK_THREAD_SPIN_LOCK_H
 #define LLDK_THREAD_SPIN_LOCK_H
 
-#include "lldk/base/common.h"
+#include "lldk/common/common.h"
 
 namespace lldk
 {
