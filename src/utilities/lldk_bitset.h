@@ -2,7 +2,6 @@
 #define LLDK_UTILITIES_LLDK_BITSET_H
 
 #include "lldk/common/common.h"
-#include <cstdint>
 
 namespace lldk
 {
@@ -12,13 +11,16 @@ namespace utilities
 template <uint32_t kSize>
 class LldkBitset
 {
+    static_assert(kSize > 0 && kSize % 8 == 0, "kSize must be greater than 0 and a multiple of 8");
+
     using ArrayType = uint64_t;
-    static constexpr uint32_t kBitCount = (kSize / sizeof(ArrayType)) + 1;
-    static constexpr uint32_t kBitMask = sizeof(ArrayType) * 8 - 1;
+    static constexpr uint32_t kBitsPerElement = sizeof(ArrayType) * 8;  // 64 bits
+    static constexpr uint32_t kBitCount = (kSize == 0) ? 1 : ((kSize + kBitsPerElement - 1) / kBitsPerElement);
+    static constexpr uint32_t kBitMask = kBitsPerElement - 1;
 
     static constexpr uint32_t getArrayIndex(uint32_t uIndex)
     {
-        return uIndex / sizeof(ArrayType);
+        return uIndex / kBitsPerElement;
     }
 
     static constexpr uint32_t getBitIndex(uint32_t uIndex)
@@ -32,17 +34,17 @@ public:
 
     bool test(uint32_t uIndex)
     {
-        return m_arrBits[getArrayIndex(uIndex)] & (1 << getBitIndex(uIndex));
+        return (m_arrBits[getArrayIndex(uIndex)] & ((ArrayType)1 << getBitIndex(uIndex))) != 0;
     }
 
     void set(uint32_t uIndex)
     {
-        m_arrBits[getArrayIndex(uIndex)] |= (1 << getBitIndex(uIndex));
+        m_arrBits[getArrayIndex(uIndex)] |= ((ArrayType)1 << getBitIndex(uIndex));
     }
 
     void clear(uint32_t uIndex)
     {
-        m_arrBits[getArrayIndex(uIndex)] &= ~(1 << getBitIndex(uIndex));
+        m_arrBits[getArrayIndex(uIndex)] &= ~((ArrayType)1 << getBitIndex(uIndex));
     }
 
     bool testAll()
@@ -81,7 +83,7 @@ public:
 
     void setAll()
     {
-        memset(m_arrBits, (ArrayType)-1, sizeof(m_arrBits));
+        memset(m_arrBits, 0xFF, sizeof(m_arrBits));
     }
 
     uint32_t count()
@@ -124,7 +126,7 @@ public:
     }
 
 private:
-    ArrayType m_arrBits[kBitCount];
+    ArrayType m_arrBits[kBitCount] {0};
 };
 
 }

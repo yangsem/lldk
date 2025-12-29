@@ -93,8 +93,9 @@ static void deleteAllocatorImpl(lldk::base::AllocatorImpl *pAllocator)
     }
 }
 
+using AllocatorUniqueptr = std::unique_ptr<lldk::base::AllocatorImpl, decltype(&deleteAllocatorImpl)>;
 static std::mutex s_mutex;
-static std::unordered_map<std::string, std::unique_ptr<lldk::base::AllocatorImpl, decltype(&deleteAllocatorImpl)>> s_pAllocatorMap;
+static std::unordered_map<std::string, AllocatorUniqueptr> s_pAllocatorMap;
 
 lldk::base::IAllocator *lldkCreateAllocator(const char *pName, uint64_t uMaxSizeMB)
 {
@@ -118,7 +119,7 @@ lldk::base::IAllocator *lldkCreateAllocator(const char *pName, uint64_t uMaxSize
     if (likely(pAllocatorSingleton != nullptr))
     {
         auto pAllocator = pAllocatorSingleton->newObject<lldk::base::AllocatorImpl>(pName);
-        std::unique_ptr<lldk::base::AllocatorImpl, decltype(&deleteAllocatorImpl)> upAllocator(pAllocator, deleteAllocatorImpl);
+        AllocatorUniqueptr allocatorUniqueptr(pAllocator, deleteAllocatorImpl);
         if (unlikely(pAllocator == nullptr))
         {
             lldkSetErrorCode(lldk::ErrorCode::kNoMemory);
@@ -134,7 +135,7 @@ lldk::base::IAllocator *lldkCreateAllocator(const char *pName, uint64_t uMaxSize
         try
         {
             std::lock_guard<std::mutex> lock(s_mutex);
-            s_pAllocatorMap[pName] = std::move(upAllocator);
+            s_pAllocatorMap.emplace(pName, std::move(allocatorUniqueptr));
         }
         catch (...)
         {
@@ -157,7 +158,7 @@ void lldkDestroyAllocator(lldk::base::IAllocator *pAllocator)
         std::lock_guard<std::mutex> lock(s_mutex);
         auto pName = pAllocatorImpl->getName();
         auto iter = s_pAllocatorMap.find(pName);
-        if (likely(iter != s_pAllocatorMap.end() || pAllocatorImpl == iter->second.get()))
+        if (likely(iter != s_pAllocatorMap.end() && pAllocatorImpl == iter->second.get()))
         {
             s_pAllocatorMap.erase(iter);
         }

@@ -151,8 +151,16 @@
 #define LLDK_PRINT_WARN(format, ...) LLDK_PRINT_BASE(stdout, LLDK_COLOR_GREEN format LLDK_COLOR_RESET, ##__VA_ARGS__)
 #define LLDK_PRINT_ERROR(format, ...) LLDK_PRINT_BASE(stderr, LLDK_COLOR_RED format LLDK_COLOR_RESET, ##__VA_ARGS__)
 
-// type alias
+// common headers
 #include <stdint.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#ifdef __cplusplus
+#include <new>
+#endif
 
 /**
  * @brief Get the process id

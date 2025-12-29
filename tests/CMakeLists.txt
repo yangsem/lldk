@@ -149,6 +149,7 @@ foreach(TEST_FILE ${TEST_FILES})
     # 设置包含目录
     target_include_directories(${TEST_NAME} PRIVATE
         ${INCLUDE_DIR}
+        ${SRC_DIR}/utilities
         ${GTEST_INCLUDE_DIR}
     )
     
