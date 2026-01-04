@@ -166,8 +166,8 @@ TEST(LldkBitset, Size)
     LldkBitset<128> bitset2;
     EXPECT_EQ(bitset2.size(), 128);
     
-    LldkBitset<200> bitset3;
-    EXPECT_EQ(bitset3.size(), 200);
+    LldkBitset<256> bitset3;
+    EXPECT_EQ(bitset3.size(), 256);
 }
 
 // 测试 findFirstSet
@@ -254,15 +254,15 @@ TEST(LldkBitset, LastBit)
 // 测试多个操作组合
 TEST(LldkBitset, CombinedOperations)
 {
-    LldkBitset<200> bitset;
+    LldkBitset<256> bitset;
     
     // 设置一些位
-    for (uint32_t i = 0; i < 200; i += 10)
+    for (uint32_t i = 0; i < 256; i += 10)
     {
         bitset.set(i);
     }
     
-    EXPECT_EQ(bitset.count(), 20);
+    EXPECT_EQ(bitset.count(), 26);
     EXPECT_TRUE(bitset.testAny());
     EXPECT_FALSE(bitset.testAll());
     EXPECT_FALSE(bitset.testNone());
@@ -275,14 +275,14 @@ TEST(LldkBitset, CombinedOperations)
     
     // 设置所有位
     bitset.setAll();
-    EXPECT_EQ(bitset.count(), 200);
+    EXPECT_EQ(bitset.count(), 256);
     EXPECT_TRUE(bitset.testAll());
     
     // 清除一些位
     bitset.clear(0);
     bitset.clear(100);
-    bitset.clear(199);
-    EXPECT_EQ(bitset.count(), 197);
+    bitset.clear(255);
+    EXPECT_EQ(bitset.count(), 253);
     EXPECT_FALSE(bitset.testAll());
     EXPECT_EQ(bitset.findFirstNone(), 0);
 }
@@ -290,10 +290,10 @@ TEST(LldkBitset, CombinedOperations)
 // 测试不同大小的 bitset
 TEST(LldkBitset, DifferentSizes)
 {
-    LldkBitset<8> bitset1;
+    LldkBitset<64> bitset1;
     bitset1.set(0);
     EXPECT_TRUE(bitset1.test(0));
-    EXPECT_EQ(bitset1.size(), 1);
+    EXPECT_EQ(bitset1.size(), 64);
     
     LldkBitset<128> bitset2;
     bitset2.set(0);

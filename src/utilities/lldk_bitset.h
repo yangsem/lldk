@@ -11,12 +11,12 @@ namespace utilities
 template <uint32_t kSize>
 class LldkBitset
 {
-    static_assert(kSize > 0 && kSize % 8 == 0, "kSize must be greater than 0 and a multiple of 8");
-
     using ArrayType = uint64_t;
     static constexpr uint32_t kBitsPerElement = sizeof(ArrayType) * 8;  // 64 bits
     static constexpr uint32_t kBitCount = (kSize == 0) ? 1 : ((kSize + kBitsPerElement - 1) / kBitsPerElement);
     static constexpr uint32_t kBitMask = kBitsPerElement - 1;
+
+    static_assert(kSize > 0 && kSize % kBitsPerElement == 0, "kSize must be greater than 0 and a multiple of kBitsPerElement");
 
     static constexpr uint32_t getArrayIndex(uint32_t uIndex)
     {
@@ -107,7 +107,7 @@ public:
         {
             if (m_arrBits[i] != (ArrayType)0)
             {
-                return i * sizeof(ArrayType) + __builtin_ctzll(m_arrBits[i]);
+                return i * kBitsPerElement + __builtin_ctzll(m_arrBits[i]);
             }
         }
         return kSize;
@@ -119,7 +119,7 @@ public:
         {
             if (m_arrBits[i] != (ArrayType)-1)
             {
-                return i * sizeof(ArrayType) + __builtin_ctzll(~m_arrBits[i]);
+                return i * kBitsPerElement + __builtin_ctzll(~m_arrBits[i]);
             }
         }
         return kSize;
