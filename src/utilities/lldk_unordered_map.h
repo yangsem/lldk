@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include <functional>
+#include <stdexcept>
 
 namespace lldk
 {
@@ -90,6 +91,11 @@ public:
         return m_mapEntries.empty();
     }
 
+    uint64_t cachemissCount() const
+    {
+        return m_uCachemissCount;
+    }
+
     Value& operator[](const Key& key)
     {
         auto pValue = find(key);
@@ -107,11 +113,11 @@ public:
         }
 
         throw std::runtime_error("Failed to insert key-value pair");
-        return Value();
     }
 
 private:
-    const std::pair<Key, Value> *m_arrEntries[CACHE_SIZE];
+    HashFunc hashFunc;
+    typename std::unordered_map<Key, Value, HashFunc>::value_type *m_arrEntries[CACHE_SIZE];
     uint64_t m_uCachemissCount{0};
     std::unordered_map<Key, Value, HashFunc> m_mapEntries;
 };
