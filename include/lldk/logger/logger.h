@@ -101,6 +101,10 @@ private:
 }
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Create a logger
  * @param pName The name of the logger
@@ -119,6 +123,10 @@ LLDK_EXTERN_C void lldkDestroyLogger(lldk::logger::ILogger *pLogger);
  * @return The logger pointer, NULL if failed
  */
 LLDK_EXTERN_C lldk::logger::ILogger *lldkGetLoggerSingleton();
+
+#ifdef __cplusplus
+}
+#endif
 
 #define __LLDK_LOG_BASE(pLogger, eLevel, iErrorCode, pFormat, ...)             \
   {                                                                            \

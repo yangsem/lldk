@@ -48,6 +48,10 @@ public:
 }
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Create a condition variable
  * @return The condition variable pointer, NULL if failed
@@ -59,5 +63,9 @@ LLDK_EXTERN_C lldk::thread::IConditionVariable *lldkCreateConditionVariable();
  * @param pConditionVariable The condition variable pointer
  */
 LLDK_EXTERN_C void lldkDestroyConditionVariable(lldk::thread::IConditionVariable *pConditionVariable);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LLDK_THREAD_CONDITION_VARIABLE_H

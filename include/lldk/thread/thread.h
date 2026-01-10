@@ -136,6 +136,10 @@ public:
 }
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Set the thread name
  * @param pName The thread name
@@ -181,5 +185,9 @@ LLDK_EXTERN_C void lldkDestroyThreadManager(lldk::thread::IThreadManager *pThrea
  * @return The thread manager pointer, NULL if failed
  */
 LLDK_EXTERN_C lldk::thread::IThreadManager *lldkGetThreadManagerSingleton();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LLDK_THREAD_THREAD_H

@@ -60,6 +60,10 @@ private:
 }
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Create a timer
  * @param pName The name of the timer
@@ -72,5 +76,9 @@ LLDK_EXTERN_C lldk::thread::ITimer *lldkCreateTimer(const char *pName);
  * @param pTimer The timer pointer
  */
 LLDK_EXTERN_C void lldkDestroyTimer(lldk::thread::ITimer *pTimer);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LLDK_THREAD_TIMER_H

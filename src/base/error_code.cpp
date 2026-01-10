@@ -1,5 +1,4 @@
 #include "lldk/common/error_code.h"
-#include "lldk/common/common.h"
 #include <string>
 #include <unordered_map>
 
@@ -23,6 +22,8 @@ static std::unordered_map<lldk::ErrorCode, const char *> s_pErrorStrMap = {
     {lldk::ErrorCode::kInvalidCall, "Invalid call"},
     {lldk::ErrorCode::kCallFailed, "Call failed"},
 };
+
+extern "C" {
 
 void lldkSetErrorCode(lldk::ErrorCode eErrorCode)
 {
@@ -69,3 +70,5 @@ const char *lldkGetErrorMsg()
 {
     return s_strErrorMsg.c_str();
 }
+
+} // extern "C"

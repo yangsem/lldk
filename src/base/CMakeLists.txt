@@ -26,15 +26,14 @@ endif()
 # 代码覆盖率选项 (默认: OFF, 可通过 -DENABLE_COVERAGE=ON 启用)
 option(ENABLE_COVERAGE "Enable code coverage" OFF)
 
-# 库类型选项 (STATIC: 静态库, SHARED: 动态库, BOTH: 同时生成静态库和动态库)
-set(BUILD_LIB_TYPE "STATIC" CACHE STRING "Library type: STATIC, SHARED, or BOTH")
-set_property(CACHE BUILD_LIB_TYPE PROPERTY STRINGS "STATIC" "SHARED" "BOTH")
-
 # 其他调试选项
 option(ENABLE_SANITIZER "Enable address sanitizer" OFF)
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+
+# 导出 compile_command.json 文件
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ==============================================================================
 # 编译选项
@@ -117,38 +116,28 @@ endif()
 # 库名称
 set(LIBRARY_NAME "base")
 
-# 自动搜索当前目录下的源文件
-# 选项：是否递归搜索子目录（默认: OFF，只搜索当前目录）
-option(AUTO_SOURCE_RECURSE "Recursively search for source files in subdirectories" OFF)
-
-if(AUTO_SOURCE_RECURSE)
-    # 递归搜索当前目录及所有子目录下的 .cpp 文件
-    file(GLOB_RECURSE SOURCE_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
-    )
-    message(STATUS "Auto-detecting source files (recursive): ${CMAKE_CURRENT_SOURCE_DIR}")
-else()
-    # 只搜索当前目录下的 .cpp 文件（不递归）
-    file(GLOB SOURCE_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
-    )
-    message(STATUS "Auto-detecting source files: ${CMAKE_CURRENT_SOURCE_DIR}")
+# 设置 utilities 路径
+set(UTILITIES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../utilities")
+if(NOT EXISTS "${UTILITIES_PATH}")
+    message(FATAL_ERROR "Utilities path not found: ${UTILITIES_PATH}")
 endif()
+message(STATUS "Utilities path: ${UTILITIES_PATH}")
 
-# 排除不需要编译的文件（如果有）
-# 例如：排除测试文件、示例文件等
-list(FILTER SOURCE_FILES EXCLUDE REGEX ".*test.*\\.cpp$")
-list(FILTER SOURCE_FILES EXCLUDE REGEX ".*example.*\\.cpp$")
-list(FILTER SOURCE_FILES EXCLUDE REGEX ".*demo.*\\.cpp$")
-
-# 如果自动搜索没有找到文件，使用手动指定的文件列表作为后备
-if(NOT SOURCE_FILES)
-    message(WARNING "No source files found automatically. Using fallback list.")
-    set(SOURCE_FILES
-        "error_code.cpp"
-        # 如果自动搜索失败，可以在这里手动添加源文件
-    )
-endif()
+# 自动递归搜索当前目录及所有子目录下的源文件
+# 包括 C、C++ 和汇编文件
+file(GLOB_RECURSE SOURCE_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cxx"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.c++"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.s"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.asm"
+    # 手动添加 utilities 下的用到的源文件
+    "${UTILITIES_PATH}/lldk_thread_local.cpp"
+)
+message(STATUS "Auto-detecting source files (recursive): ${CMAKE_CURRENT_SOURCE_DIR}")
 
 # 对源文件列表进行排序，确保构建的确定性
 list(SORT SOURCE_FILES)
@@ -172,73 +161,27 @@ if(NOT EXISTS "${INCLUDE_DIR}")
 endif()
 message(STATUS "Include directory: ${INCLUDE_DIR}")
 
-# 创建库目标（根据 BUILD_LIB_TYPE 选项）
-if(BUILD_LIB_TYPE STREQUAL "BOTH")
-    # 同时生成静态库和动态库
-    add_library(lldk_${LIBRARY_NAME}_static STATIC ${SOURCE_FILES})
-    add_library(lldk_${LIBRARY_NAME}_shared SHARED ${SOURCE_FILES})
-    
-    # 设置别名，方便使用
-    add_library(lldk::${LIBRARY_NAME}_static ALIAS lldk_${LIBRARY_NAME}_static)
-    add_library(lldk::${LIBRARY_NAME}_shared ALIAS lldk_${LIBRARY_NAME}_shared)
-    
-    # 设置库目标变量，用于后续配置
-    set(LIB_TARGET_STATIC lldk_${LIBRARY_NAME}_static)
-    set(LIB_TARGET_SHARED lldk_${LIBRARY_NAME}_shared)
-    
-    message(STATUS "Building both static and shared libraries")
-elseif(BUILD_LIB_TYPE STREQUAL "SHARED")
-    # 只生成动态库
-    add_library(lldk_${LIBRARY_NAME} SHARED ${SOURCE_FILES})
-    set(LIB_TARGET lldk_${LIBRARY_NAME})
-    message(STATUS "Building shared library")
-else()
-    # 默认：只生成静态库
-    add_library(lldk_${LIBRARY_NAME} STATIC ${SOURCE_FILES})
-    set(LIB_TARGET lldk_${LIBRARY_NAME})
-    message(STATUS "Building static library")
-endif()
+# 创建动态库目标
+add_library(lldk_${LIBRARY_NAME} SHARED ${SOURCE_FILES})
+set(LIB_TARGET lldk_${LIBRARY_NAME})
+message(STATUS "Building shared library")
 
 # 设置包含目录和编译特性
-if(BUILD_LIB_TYPE STREQUAL "BOTH")
-    # 同时配置静态库和动态库
-    foreach(TARGET_NAME ${LIB_TARGET_STATIC} ${LIB_TARGET_SHARED})
-        target_include_directories(${TARGET_NAME}
-            PUBLIC
-                ${INCLUDE_DIR}
-            PRIVATE
-                ${CMAKE_CURRENT_SOURCE_DIR}
-        )
-        target_compile_features(${TARGET_NAME} PUBLIC cxx_std_${CMAKE_CXX_STANDARD})
-    endforeach()
-    
-    # 设置动态库版本和符号可见性
-    set_target_properties(${LIB_TARGET_SHARED} PROPERTIES
-        VERSION 1.0.0
-        SOVERSION 1
-        CXX_VISIBILITY_PRESET hidden
-        VISIBILITY_INLINES_HIDDEN ON
-    )
-else()
-    # 配置单个库目标
-    target_include_directories(${LIB_TARGET}
-        PUBLIC
-            ${INCLUDE_DIR}
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    target_compile_features(${LIB_TARGET} PUBLIC cxx_std_${CMAKE_CXX_STANDARD})
-    
-    # 如果是动态库，设置版本和符号可见性
-    if(BUILD_LIB_TYPE STREQUAL "SHARED")
-        set_target_properties(${LIB_TARGET} PROPERTIES
-            VERSION 1.0.0
-            SOVERSION 1
-            CXX_VISIBILITY_PRESET hidden
-            VISIBILITY_INLINES_HIDDEN ON
-        )
-    endif()
-endif()
+target_include_directories(${LIB_TARGET}
+    PUBLIC
+        ${INCLUDE_DIR}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_compile_features(${LIB_TARGET} PUBLIC cxx_std_${CMAKE_CXX_STANDARD})
+
+# 设置动态库版本和符号可见性
+set_target_properties(${LIB_TARGET} PROPERTIES
+    VERSION 1.0.0
+    SOVERSION 1
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
 
 # base 库没有依赖其他 lldk 库
 # 如果有依赖，可以这样添加：
@@ -255,7 +198,7 @@ endif()
 
 message(STATUS "==========================================")
 message(STATUS "Building library: lldk_${LIBRARY_NAME}")
-message(STATUS "Library Type: ${BUILD_LIB_TYPE}")
+message(STATUS "Library Type: SHARED")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Coverage: ${ENABLE_COVERAGE}")

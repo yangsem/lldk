@@ -83,6 +83,10 @@ public:
 }
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Create a task scheduler
  * @param pName The name of the task scheduler
@@ -101,5 +105,9 @@ LLDK_EXTERN_C void lldkDestroyTaskScheduler(lldk::thread::ITaskScheduler *pTaskS
  * @return The task scheduler pointer, NULL if failed
  */
 LLDK_EXTERN_C lldk::thread::ITaskScheduler *lldkGetTaskSchedulerSingleton();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LLDK_THREAD_TASK_SCHEDULER_H

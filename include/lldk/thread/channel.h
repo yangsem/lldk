@@ -101,6 +101,10 @@ struct ChannelHandle
 }
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Create a channel
  * @param eType The type of the channel
@@ -116,5 +120,9 @@ LLDK_EXTERN_C lldk::thread::ChannelHandle lldkCreateChannel(lldk::thread::Channe
  * @param hChannel The channel handle
  */
 LLDK_EXTERN_C void lldkDestroyChannel(lldk::thread::ChannelHandle hChannel);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LLDK_THREAD_CHANNEL_H
