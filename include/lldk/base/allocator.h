@@ -104,24 +104,32 @@ public:
 }
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Create a allocator
  * @param pName The name of the allocator
  * @param uMaxSizeMB The maximum size of the allocator, in MB, 0 means no limit
  * @return The allocator pointer, NULL if failed
  */
-LLDK_EXTERN_C lldk::base::IAllocator *lldkCreateAllocator(const char *pName, uint64_t uMaxSizeMB);
+LLDK_EXPORT lldk::base::IAllocator *lldkCreateAllocator(const char *pName, uint64_t uMaxSizeMB);
 
 /**
  * @brief Destroy a allocator
  * @param pAllocator The allocator pointer
  */
-LLDK_EXTERN_C void lldkDestroyAllocator(lldk::base::IAllocator *pAllocator);
+LLDK_EXPORT void lldkDestroyAllocator(lldk::base::IAllocator *pAllocator);
 
 /**
  * @brief Get the allocator singleton
  * @return The allocator pointer, NULL if failed
  */
-LLDK_EXTERN_C lldk::base::IAllocator *lldkGetAllocatorSingleton();
+LLDK_EXPORT lldk::base::IAllocator *lldkGetAllocatorSingleton();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LLDK_MEMORY_ALLOCATOR_H

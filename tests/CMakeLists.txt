@@ -113,6 +113,9 @@ endforeach()
 # 创建测试可执行文件
 # ==============================================================================
 
+# 设置 utilities 路径
+set(UTILITIES_DIR "${SRC_DIR}/utilities")
+
 # 为每个测试文件创建可执行文件
 foreach(TEST_FILE ${TEST_FILES})
     # 获取测试文件名（不含扩展名）
@@ -122,29 +125,45 @@ foreach(TEST_FILE ${TEST_FILES})
     get_filename_component(TEST_DIR ${TEST_FILE} DIRECTORY)
     get_filename_component(TEST_REL_DIR ${TEST_DIR} NAME)
     
-    # 确定需要链接的库
-    # 如果测试文件在 tests/base/ 目录，则链接 lldk_base
-    set(TARGET_LIB "")
-    if(TEST_REL_DIR STREQUAL "base" OR TEST_REL_DIR STREQUAL "")
-        # 检查是否是根目录的测试（TEST_REL_DIR 为空表示在 tests/ 根目录）
-        if(TEST_REL_DIR STREQUAL "")
-            # 根目录测试，可能需要链接所有库或特定库
-            # 这里可以根据需要调整
-            set(TARGET_LIB "lldk_base")
-        else()
-            # 子目录测试，链接对应的库
-            set(TARGET_LIB "lldk_${TEST_REL_DIR}")
-        endif()
-    else()
-        # 其他目录的测试
-        set(TARGET_LIB "lldk_${TEST_REL_DIR}")
+    # 判断是否是 utilities 目录下的测试
+    set(IS_UTILITIES_TEST FALSE)
+    if(TEST_REL_DIR STREQUAL "utilities")
+        set(IS_UTILITIES_TEST TRUE)
     endif()
     
-    # 创建测试可执行文件
-    add_executable(${TEST_NAME}
+    # 收集源文件列表
+    set(SOURCE_FILES
         ${TEST_FILE}
         ${CMAKE_CURRENT_SOURCE_DIR}/test_main.cpp
     )
+    
+    # 如果是 utilities 目录下的测试，添加对应的源文件实现
+    if(IS_UTILITIES_TEST)
+        # 根据测试文件名映射到对应的源文件
+        # test_lldk_thread_local -> lldk_thread_local.cpp
+        # test_lldk_bitset -> (只有头文件，模板类)
+        # test_lldk_unordered_map -> (只有头文件，模板类)
+        
+        if(TEST_NAME STREQUAL "test_lldk_thread_local")
+            set(UTILITY_SOURCE "${UTILITIES_DIR}/lldk_thread_local.cpp")
+            if(EXISTS "${UTILITY_SOURCE}")
+                list(APPEND SOURCE_FILES "${UTILITY_SOURCE}")
+                message(STATUS "Test ${TEST_NAME} includes source: ${UTILITY_SOURCE}")
+            endif()
+        endif()
+        
+        # 如果还有其他 utilities 的源文件需要添加，可以在这里扩展
+        # 例如：
+        # if(TEST_NAME STREQUAL "test_xxx")
+        #     set(UTILITY_SOURCE "${UTILITIES_DIR}/xxx.cpp")
+        #     if(EXISTS "${UTILITY_SOURCE}")
+        #         list(APPEND SOURCE_FILES "${UTILITY_SOURCE}")
+        #     endif()
+        # endif()
+    endif()
+    
+    # 创建测试可执行文件
+    add_executable(${TEST_NAME} ${SOURCE_FILES})
     
     # 设置包含目录
     target_include_directories(${TEST_NAME} PRIVATE
@@ -156,19 +175,63 @@ foreach(TEST_FILE ${TEST_FILES})
     # 设置编译特性
     target_compile_features(${TEST_NAME} PUBLIC cxx_std_${CMAKE_CXX_STANDARD})
     
-    # 链接库
-    if(TARGET ${TARGET_LIB})
-        target_link_libraries(${TEST_NAME} PRIVATE
-            ${TARGET_LIB}
-            ${GTEST_LIB}  # gtest_main 已经包含了 gtest
-        )
-        message(STATUS "Test ${TEST_NAME} links to ${TARGET_LIB}")
+    # 链接库（utilities 测试不链接库，直接编译源码；其他测试链接对应库）
+    if(IS_UTILITIES_TEST)
+        # utilities 测试直接编译源码，不链接库
+        # 但可能需要链接 base 库（如果 utilities 的源文件依赖 base 库）
+        # 检查是否需要链接 base 库（例如 lldk_thread_local 需要 allocator）
+        if(TEST_NAME STREQUAL "test_lldk_thread_local")
+            if(TARGET lldk_base)
+                target_link_libraries(${TEST_NAME} PRIVATE
+                    lldk_base
+                    ${GTEST_LIB}
+                )
+                message(STATUS "Test ${TEST_NAME} links to lldk_base (for allocator dependency)")
+            else()
+                target_link_libraries(${TEST_NAME} PRIVATE
+                    ${GTEST_LIB}
+                )
+                message(WARNING "Test ${TEST_NAME} needs lldk_base but it's not found")
+            endif()
+        else()
+            # 其他 utilities 测试可能不需要链接库（纯模板类）
+            target_link_libraries(${TEST_NAME} PRIVATE
+                ${GTEST_LIB}
+            )
+            message(STATUS "Test ${TEST_NAME} uses header-only utilities, no library link needed")
+        endif()
     else()
-        # 如果目标库不存在，只链接 GoogleTest
-        target_link_libraries(${TEST_NAME} PRIVATE
-            ${GTEST_LIB}  # gtest_main 已经包含了 gtest
-        )
-        message(WARNING "Library ${TARGET_LIB} not found, test ${TEST_NAME} will only link to GoogleTest")
+        # 非 utilities 测试，链接对应的库
+        set(TARGET_LIB "")
+        if(TEST_REL_DIR STREQUAL "base" OR TEST_REL_DIR STREQUAL "")
+            # 检查是否是根目录的测试（TEST_REL_DIR 为空表示在 tests/ 根目录）
+            if(TEST_REL_DIR STREQUAL "")
+                # 根目录测试，可能需要链接所有库或特定库
+                # 这里可以根据需要调整
+                set(TARGET_LIB "lldk_base")
+            else()
+                # 子目录测试，链接对应的库
+                set(TARGET_LIB "lldk_${TEST_REL_DIR}")
+            endif()
+        else()
+            # 其他目录的测试
+            set(TARGET_LIB "lldk_${TEST_REL_DIR}")
+        endif()
+        
+        # 链接库
+        if(TARGET ${TARGET_LIB})
+            target_link_libraries(${TEST_NAME} PRIVATE
+                ${TARGET_LIB}
+                ${GTEST_LIB}  # gtest_main 已经包含了 gtest
+            )
+            message(STATUS "Test ${TEST_NAME} links to ${TARGET_LIB}")
+        else()
+            # 如果目标库不存在，只链接 GoogleTest
+            target_link_libraries(${TEST_NAME} PRIVATE
+                ${GTEST_LIB}  # gtest_main 已经包含了 gtest
+            )
+            message(WARNING "Library ${TARGET_LIB} not found, test ${TEST_NAME} will only link to GoogleTest")
+        endif()
     endif()
     
     # 添加到 CTest

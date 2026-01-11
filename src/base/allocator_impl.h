@@ -4,7 +4,6 @@
 #include "lldk/base/allocator.h"
 #include <mutex>
 #include <string>
-#include <vector>
 #include "../utilities/lldk_thread_local.h"
 
 namespace lldk
@@ -29,15 +28,31 @@ public:
 private:
     static AllocateStats *createAllocateStats();
     static void deleteAllocateStats(AllocateStats *pAllocateStats);
-    using CreateAllocateStatsFunc = std::function<AllocateStats *()>;
-    using DeleteAllocateStatsFunc = std::function<void(AllocateStats *)>;
-    using ThreadLocalAllocateStats = utilities::LldkThreadLocal<AllocateStats, 1024, CreateAllocateStatsFunc, DeleteAllocateStatsFunc>;
+    
+    // 函数对象类型，用于 LldkThreadLocal 模板
+    struct CreateAllocateStatsFunc
+    {
+        AllocateStats *operator()() const
+        {
+            return AllocatorImpl::createAllocateStats();
+        }
+    };
+    
+    struct DeleteAllocateStatsFunc
+    {
+        void operator()(AllocateStats *pStats) const
+        {
+            AllocatorImpl::deleteAllocateStats(pStats);
+        }
+    };
+    
+    using AllocatorThreadLocal = utilities::LldkThreadLocal<AllocateStats>;
 
 private:
     std::string m_sName;
     uint64_t m_uMaxSizeMB{0};
     mutable std::mutex m_mutex;
-    ThreadLocalAllocateStats m_threadLocalAllocateStats;
+    AllocatorThreadLocal m_allocatorThreadLocal;
 };
 
 }

@@ -1,84 +1,80 @@
 #include "lldk_thread_local.h"
+#include "../utilities/lldk_bitset.h"
 #include "lldk/common/error_code.h"
+#include <vector>
+#include <mutex>
 
 namespace lldk
 {
 namespace utilities
 {
 
-template <typename T, uint32_t kInstanceIdSize, typename CreateFunc, typename DestroyFunc>
-thread_local T **LldkThreadLocal<T, kInstanceIdSize, CreateFunc, DestroyFunc>::m_ppInstances = nullptr;
+static thread_local void **s_ppInstances = nullptr;
 
-template <typename T, uint32_t kInstanceIdSize, typename CreateFunc, typename DestroyFunc>
-LldkThreadLocal<T, kInstanceIdSize, CreateFunc, DestroyFunc>::LldkThreadLocal()
+static std::mutex s_mutex;
+static LldkBitset<LldkThreadLocalBase::kMaxInstanceId> s_bitset;
+static std::vector<void **> s_vecpppInstances;
+
+uint32_t LldkThreadLocalBase::newInstanceId()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    auto uInstanceId = m_bitset.findFirstNone();
-    if (unlikely(uInstanceId == kInstanceIdSize))
+    std::lock_guard<std::mutex> lock(s_mutex);
+    auto uInstanceId = s_bitset.findFirstNone();
+    if (unlikely(uInstanceId == kMaxInstanceId))
     {
-        throw std::runtime_error("Failed to create instance id");
+        return kInvalidInstanceId;
     }
-    m_bitset.set(uInstanceId);
-    m_uInstanceId = uInstanceId;
+    s_bitset.set(uInstanceId);
+    return uInstanceId;
 }
 
-template <typename T, uint32_t kInstanceIdSize, typename CreateFunc, typename DestroyFunc>
-LldkThreadLocal<T, kInstanceIdSize, CreateFunc, DestroyFunc>::~LldkThreadLocal()
+void LldkThreadLocalBase::deleteInstanceId(uint32_t uInstanceId)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    for (auto ppInstance : m_vecppInstances)
-    {
-        if (ppInstance != nullptr && ppInstance[m_uInstanceId] != nullptr)
-        {
-            DestroyFunc()(ppInstance[m_uInstanceId]);
-            ppInstance[m_uInstanceId] = nullptr;
-        }
-    }
-    m_bitset.clear(m_uInstanceId);
+    std::lock_guard<std::mutex> lock(s_mutex);
+    s_bitset.clear(uInstanceId);
 }
 
-template <typename T, uint32_t kInstanceIdSize, typename CreateFunc, typename DestroyFunc>
-T *LldkThreadLocal<T, kInstanceIdSize, CreateFunc, DestroyFunc>::get()
+int32_t LldkThreadLocalBase::setThreadLocalStorage(uint32_t uInstanceId, void *pStorage)
 {
-    if (unlikely(m_ppInstances == nullptr))
+    if (unlikely(uInstanceId == kInvalidInstanceId || pStorage == nullptr))
     {
-        m_ppInstances = LLDK_NEW T *[kInstanceIdSize];
-        if (unlikely(m_ppInstances == nullptr))
+        lldkSetErrorCode(lldk::ErrorCode::kInvalidParam);
+        return -1;
+    }
+    
+    if (unlikely(s_ppInstances == nullptr))
+    {
+        s_ppInstances = (void **)LldkThreadLocalBase::lldkAllocate(sizeof(void *) * kMaxInstanceId);
+        if (unlikely(s_ppInstances == nullptr))
         {
             lldkSetErrorCode(lldk::ErrorCode::kNoMemory);
-            return nullptr;
+            return -1;
         }
-    
+        memset(s_ppInstances, 0, sizeof(void *) * kMaxInstanceId);
+
         try
         {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_vecppInstances.push_back(&m_ppInstances);
+            std::lock_guard<std::mutex> lock(s_mutex);
+            s_vecpppInstances.push_back(s_ppInstances);
         }
         catch (...)
         {
-            delete[] m_ppInstances;
-            m_ppInstances = nullptr;
+            LldkThreadLocalBase::lldkFree(s_ppInstances);
+            s_ppInstances = nullptr;
             lldkSetErrorCode(lldk::ErrorCode::kThrowException);
-            return nullptr;
+            return -1;
         }
     }
 
-    auto &pInstance = m_ppInstances[m_uInstanceId];
-    if (unlikely(pInstance == nullptr))
-    {
-        pInstance = CreateFunc()();
-        if (unlikely(pInstance == nullptr))
-        {
-            lldkSetErrorCode(lldk::ErrorCode::kCallFailed);
-            return nullptr;
-        }
-    }
-
-    return pInstance;
+    s_ppInstances[uInstanceId] = pStorage;
+    return 0;
 }
 
-template <typename T, uint32_t kInstanceIdSize, typename CreateFunc, typename DestroyFunc>
-int32_t LldkThreadLocal<T, kInstanceIdSize, CreateFunc, DestroyFunc>::foreach(std::function<void(T *)> func) const
+void *LldkThreadLocalBase::getThreadLocalStorage(uint32_t uInstanceId)
+{
+    return s_ppInstances[uInstanceId];
+}
+
+int32_t LldkThreadLocalBase::foreach(uint32_t uInstanceId, std::function<int32_t(void *)> func)
 {
     if (unlikely(func == nullptr))
     {
@@ -86,16 +82,32 @@ int32_t LldkThreadLocal<T, kInstanceIdSize, CreateFunc, DestroyFunc>::foreach(st
         return -1;
     }
 
-    std::lock_guard<std::mutex> lock(m_mutex);
-    for (auto ppInstance : m_vecppInstances)
+    std::lock_guard<std::mutex> lock(s_mutex);
+    for (auto ppInstance : s_vecpppInstances)
     {
-        if (ppInstance != nullptr && ppInstance[m_uInstanceId] != nullptr)
+        if (ppInstance != nullptr && ppInstance[uInstanceId] != nullptr)
         {
-            func(ppInstance[m_uInstanceId]);
+            if (unlikely(func(ppInstance[uInstanceId]) != 0))
+            {
+                lldkSetErrorCode(lldk::ErrorCode::kCallFailed);
+                return -1;
+            }
         }
     }
-
     return 0;
+}
+
+LLDK_EXTERN_C void *__lldkAllocate(uint64_t uSize);
+LLDK_EXTERN_C void __lldkFree(void *pMemory);
+
+void *LldkThreadLocalBase::lldkAllocate(uint64_t uSize)
+{
+    return __lldkAllocate(uSize);
+}
+
+void LldkThreadLocalBase::lldkFree(void *pMemory)
+{
+    __lldkFree(pMemory);
 }
 
 }

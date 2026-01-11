@@ -27,7 +27,7 @@ void *AllocatorImpl::allocate(uint64_t uSize)
     *((uint64_t *)pData) = uSize;
     pData = (void *)((uint8_t *)pData + sizeof(uint64_t));
 
-    auto pAllocateStats = m_threadLocalAllocateStats.get();
+    auto pAllocateStats = m_allocatorThreadLocal.get();
     if (likely(pAllocateStats != nullptr))
     {
         pAllocateStats->uAllocatedSize += uSize;
@@ -45,14 +45,81 @@ void AllocatorImpl::free(void *pMemory)
         return;
     }
 
-    auto pAllocateStats = m_threadLocalAllocateStats.get();
+    void *pOriginalMemory = (void *)((uint8_t *)pMemory - sizeof(uint64_t));
+    uint64_t uSize = *((uint64_t *)pOriginalMemory);
+
+    auto pAllocateStats = m_allocatorThreadLocal.get();
     if (likely(pAllocateStats != nullptr))
     {
-        pAllocateStats->uFreedSize += *((uint64_t *)pMemory);
+        pAllocateStats->uFreedSize += uSize;
         pAllocateStats->uFreedCount++;
     }
 
-    free(pMemory);
+    ::free(pOriginalMemory);
+}
+
+void *AllocatorImpl::reAllocate(void *pMemory, uint64_t uSize)
+{
+    if (unlikely(pMemory == nullptr))
+    {
+        return allocate(uSize);
+    }
+
+    void *pOriginalMemory = (void *)((uint8_t *)pMemory - sizeof(uint64_t));
+    uint64_t uOldSize = *((uint64_t *)pOriginalMemory);
+
+    void *pNewMemory = realloc(pOriginalMemory, uSize + sizeof(uint64_t));
+    if (unlikely(pNewMemory == nullptr))
+    {
+        lldkSetErrorCode(lldk::ErrorCode::kNoMemory);
+        return nullptr;
+    }
+
+    *((uint64_t *)pNewMemory) = uSize;
+    void *pResult = (void *)((uint8_t *)pNewMemory + sizeof(uint64_t));
+
+    auto pAllocateStats = m_allocatorThreadLocal.get();
+    if (likely(pAllocateStats != nullptr))
+    {
+        pAllocateStats->uFreedSize += uOldSize;
+        pAllocateStats->uFreedCount++;
+        pAllocateStats->uAllocatedSize += uSize;
+        pAllocateStats->uAllocatedCount++;
+    }
+
+    return pResult;
+}
+
+const char *AllocatorImpl::getName() const
+{
+    return m_sName.c_str();
+}
+
+int32_t AllocatorImpl::init(uint64_t uMaxSizeMB)
+{
+    m_uMaxSizeMB = uMaxSizeMB;
+    return 0;
+}
+
+AllocatorImpl::AllocateStats *AllocatorImpl::createAllocateStats()
+{
+    auto pStats = new AllocateStats();
+    if (unlikely(pStats == nullptr))
+    {
+        lldkSetErrorCode(lldk::ErrorCode::kNoMemory);
+        return nullptr;
+    }
+    memset(pStats, 0, sizeof(AllocateStats));
+    pStats->uTid = lldkGetTid();
+    return pStats;
+}
+
+void AllocatorImpl::deleteAllocateStats(AllocateStats *pAllocateStats)
+{
+    if (likely(pAllocateStats != nullptr))
+    {
+        delete pAllocateStats;
+    }
 }
 
 int32_t AllocatorImpl::getAllocateStats(IAllocator::AllocateStats *pAllocateStats, uint32_t *pThreadCount) const
@@ -70,9 +137,10 @@ int32_t AllocatorImpl::getAllocateStats(IAllocator::AllocateStats *pAllocateStat
         {
             pAllocateStats[uThreadCount++] = *pStats;
         }
+        return 0;
     };
 
-    m_threadLocalAllocateStats.foreach(func);
+    m_allocatorThreadLocal.foreach(func);
     *pThreadCount = uThreadCount;
     return 0;
 }
@@ -96,6 +164,7 @@ static void deleteAllocatorImpl(lldk::base::AllocatorImpl *pAllocator)
 using AllocatorUniqueptr = std::unique_ptr<lldk::base::AllocatorImpl, decltype(&deleteAllocatorImpl)>;
 static std::mutex s_mutex;
 static std::unordered_map<std::string, AllocatorUniqueptr> s_pAllocatorMap;
+static lldk::base::AllocatorImpl::AllocateStats s_allocateStats {0, 0, 0, 0, 0};
 
 lldk::base::IAllocator *lldkCreateAllocator(const char *pName, uint64_t uMaxSizeMB)
 {
@@ -201,3 +270,60 @@ lldk::base::IAllocator *lldkGetAllocatorSingleton()
     return s_pAllocator;
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+LLDK_EXPORT void *__lldkAllocate(uint64_t uSize)
+{
+    auto pData = ::malloc(uSize + sizeof(uint64_t));
+    if (unlikely(pData == nullptr))
+    {
+        lldkSetErrorCode(lldk::ErrorCode::kNoMemory);
+        return nullptr;
+    }
+
+    *((uint64_t *)pData) = uSize;
+    pData = (void *)((uint8_t *)pData + sizeof(uint64_t));
+
+    std::lock_guard<std::mutex> lock(s_mutex);
+    s_allocateStats.uAllocatedSize += uSize;
+    s_allocateStats.uAllocatedCount++;
+
+    return pData;
+}
+
+LLDK_EXPORT void __lldkFree(void *pMemory)
+{
+    if (unlikely(pMemory == nullptr))
+    {
+        lldkSetErrorCode(lldk::ErrorCode::kInvalidParam);
+        return;
+    }
+
+    void *pOriginalMemory = (void *)((uint8_t *)pMemory - sizeof(uint64_t));
+    uint64_t uSize = *((uint64_t *)pOriginalMemory);
+
+    {
+        std::lock_guard<std::mutex> lock(s_mutex);
+        s_allocateStats.uFreedSize += uSize;
+        s_allocateStats.uFreedCount++;
+    }
+
+    ::free(pOriginalMemory);
+}
+
+LLDK_EXPORT int32_t __lldkGetAllocateStats(lldk::base::IAllocator::AllocateStats *pAllocateStats)
+{
+    if (unlikely(pAllocateStats == nullptr))
+    {
+        lldkSetErrorCode(lldk::ErrorCode::kInvalidParam);
+        return -1;
+    }
+
+    std::lock_guard<std::mutex> lock(s_mutex);
+    *pAllocateStats = s_allocateStats;
+    return 0;
+}
+#ifdef __cplusplus
+}
+#endif
